@@ -1,36 +1,38 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Scafold Passage Frontend
 
-## Getting Started
+Next.js(App Router) + Tailwind 기반의 내부용 관리자/선생님 포털입니다. 검색, 지문 상세, 요청 관리, 간단한 관리자 작업을 위한 UI를 제공합니다.
 
-First, run the development server:
-
+## 환경 변수
+복사 후 수정하세요.
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+cp .env.example .env.local
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+| Key | Description | Default |
+| --- | --- | --- |
+| `NEXT_PUBLIC_API_BASE_URL` | FastAPI 백엔드 주소 (`/api` 프리픽스 포함) | `http://localhost:8000/api` |
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+토큰은 환경변수로 두지 않고, 화면 상단에서 직접 입력해 `localStorage`에 저장합니다. (관리자/선생님 고정 토큰을 `.env`에 정의해둔 백엔드와 연동)
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## 로컬 실행
+```bash
+npm install
+npm run dev
+# http://localhost:3000 접속
+```
 
-## Learn More
+## 주요 화면
+- **검색 대시보드**: CC/지문/출처 기준 검색, 결과 복사, 상세 페이지 이동
+- **신규 지문 요청**: 원본 지문과 메타데이터를 제출
+- **상세 페이지**: 지문 본문, 참고자료(문제·답안) 복사 버튼
+- **관리자 페이지 (`/admin`)**: 지문 등록, 요청 목록 확인 및 처리
 
-To learn more about Next.js, take a look at the following resources:
+## API 연동
+- 모든 요청에 `X-Scafold-Token` 헤더를 자동으로 첨부합니다.
+- 401/에러 응답은 페이지 내에 한국어 메시지로 표시합니다.
+- 향후 JWT 인증으로 전환하더라도 `TokenProvider` 레이어만 교체하면 됩니다.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Vercel 배포
+1. 저장소 루트에서 `vercel` 연결 후 `frontend` 디렉터리를 프로젝트 루트로 지정합니다.
+2. `NEXT_PUBLIC_API_BASE_URL` 환경변수를 Production/Preview 각각 등록합니다.
+3. 빌드 명령은 기본(`npm install && npm run build`)을 사용하면 됩니다.
