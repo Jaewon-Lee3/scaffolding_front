@@ -4,7 +4,7 @@ import { useToken } from "@/components/auth/token-context";
 import { apiFetch, ApiError } from "@/lib/api-client";
 import type { Passage, Reference, ReferenceStructuredItem } from "@/types/api";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 interface Props {
   passageId: string;
@@ -16,18 +16,39 @@ export const PassageDetailClient = ({ passageId }: Props) => {
   const [reference, setReference] = useState<Reference | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [generating, setGenerating] = useState(false);
+  const [generateError, setGenerateError] = useState<string | null>(null);
+
+  const fetchReference = useCallback(async () => {
+    try {
+      const referenceData = await apiFetch<Reference>(
+        `/v1/references/by-passage/${passageId}`,
+        {
+          token,
+        },
+      );
+      setReference(referenceData);
+      setError(null);
+    } catch (err) {
+      setReference(null);
+      if (err instanceof ApiError && err.status === 404) {
+        setError(null);
+      } else if (err instanceof ApiError) {
+        setError(err.message);
+      } else {
+        setError("참고자료를 불러오는 중 문제가 발생했습니다.");
+      }
+    }
+  }, [passageId, token]);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [passageData, referenceData] = await Promise.all([
-          apiFetch<Passage>(`/v1/passages/${passageId}`, { token }),
-          apiFetch<Reference>(`/v1/references/by-passage/${passageId}`, {
-            token,
-          }),
-        ]);
+        const passageData = await apiFetch<Passage>(`/v1/passages/${passageId}`, {
+          token,
+        });
         setPassage(passageData);
-        setReference(referenceData);
+        await fetchReference();
       } catch (err) {
         if (err instanceof ApiError) {
           setError(err.message);
@@ -40,7 +61,7 @@ export const PassageDetailClient = ({ passageId }: Props) => {
     };
 
     fetchData();
-  }, [passageId, token]);
+  }, [fetchReference, passageId, token]);
 
   const structuredItems = useMemo<ReferenceStructuredItem[]>(() => {
     if (!reference?.structured_payload) return [];
@@ -50,6 +71,28 @@ export const PassageDetailClient = ({ passageId }: Props) => {
   const handleCopy = async (text: string) => {
     if (!navigator?.clipboard) return;
     await navigator.clipboard.writeText(text);
+  };
+
+  const handleGenerateReference = async () => {
+    setGenerating(true);
+    setGenerateError(null);
+    try {
+      const generated = await apiFetch<Reference>("/v1/references/generate", {
+        method: "POST",
+        token,
+        body: { passage_id: passageId },
+      });
+      setReference(generated);
+      setError(null);
+    } catch (err) {
+      if (err instanceof ApiError) {
+        setGenerateError(err.message);
+      } else {
+        setGenerateError("참고자료 생성에 실패했습니다.");
+      }
+    } finally {
+      setGenerating(false);
+    }
   };
 
   return (
@@ -114,12 +157,24 @@ export const PassageDetailClient = ({ passageId }: Props) => {
               각 카드마다 문단 칩을 눌러 출처를확인하고, 문제/정답을 복사하세요.
             </p>
           </div>
-          {reference?.llm_model ? (
-            <span className="text-xs text-slate-500">
-              생성 모델: {reference.llm_model}
-            </span>
-          ) : null}
+          <div className="flex flex-wrap items-center gap-3">
+            {reference?.llm_model ? (
+              <span className="text-xs text-slate-500">
+                생성 모델: {reference.llm_model}
+              </span>
+            ) : null}
+            <button
+              onClick={handleGenerateReference}
+              className="rounded-md bg-slate-900 px-3 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-slate-400"
+              disabled={generating}
+            >
+              {generating ? "생성 중..." : "참고자료 생성"}
+            </button>
+          </div>
         </div>
+        {generateError ? (
+          <p className="text-sm text-red-600">{generateError}</p>
+        ) : null}
 
         {structuredItems.length === 0 ? (
           <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-6 text-center text-sm text-slate-500">
